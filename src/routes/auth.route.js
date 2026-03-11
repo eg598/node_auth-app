@@ -10,14 +10,4 @@ router.post('/login', catchError(authController.login));
 router.get('/refresh', catchError(authController.refresh));
 router.post('/logout', catchError(authController.logout));
 
-router.post(
-  '/change-password',
-  catchError(authController.requestChangePassword),
-);
-
-router.post(
-  '/change-password/:resetToken',
-  catchError(authController.requestChangePassword),
-);
-
 module.exports = { router };

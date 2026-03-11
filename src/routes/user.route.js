@@ -7,10 +7,14 @@ const router = express.Router();
 
 router.get('/', authMiddleware, catchError(userController.getAllActivated));
 
-router.patch(
-  '/password',
-  authMiddleware,
-  catchError(userController.changePassword),
+router.post(
+  '/change-password',
+  catchError(userController.requestChangePassword),
+);
+
+router.post(
+  '/change-password/:resetToken',
+  catchError(userController.resetPassword),
 );
 
 router.patch('/email', authMiddleware, catchError(userController.changeEmail));

@@ -1,4 +1,5 @@
 const { ApiError } = require('../exeptions/api.error');
+const { User } = require('../models/user.model');
 const { userService } = require('../services/user.service');
 const bcrypt = require('bcrypt');
 
@@ -8,28 +9,42 @@ const getAllActivated = async (req, res) => {
   res.send(users.map(userService.normalize));
 };
 
-const changePassword = async (req, res) => {
-  const { email, oldPassword, newPassword } = req.body;
+const requestChangePassword = async (req, res) => {
+  const { email } = req.body;
 
   const user = await userService.findByEmail(email);
 
   if (!user) {
-    throw ApiError.badRequest('Incorrect user');
+    throw ApiError.badRequest('No user with this email');
   }
 
-  if (!newPassword || !oldPassword) {
-    throw ApiError.badRequest('Please provide old and new password');
+  await userService.resetPassword(email);
+
+  res.send({ message: 'OK' });
+};
+
+const resetPassword = async (req, res) => {
+  const { newPassword, confirmation, resetToken } = req.body;
+
+  if (!newPassword || !confirmation) {
+    throw ApiError.badRequest('Please provide new password and confirmation');
   }
 
-  if (!(await bcrypt.compare(oldPassword, user.password))) {
-    throw ApiError.badRequest('New password is same as current');
+  if (newPassword !== confirmation) {
+    throw ApiError.badRequest('Passwords do not match');
+  }
+
+  const user = await User.findOne({ where: { resetToken } });
+
+  if (!user) {
+    throw ApiError.badRequest('Invalid or expired reset token');
   }
 
   const hashedPass = await bcrypt.hash(newPassword, 10);
 
-  await user.update({ password: hashedPass });
+  await user.update({ password: hashedPass, resetToken: null });
 
-  res.redirect(`${process.env.CLIENT_HOST}/profile`);
+  res.redirect(`${process.env.CLIENT_HOST}/login`);
 };
 
 const changeName = async (req, res) => {
@@ -80,7 +95,8 @@ const userController = {
   getAllActivated,
   changeEmail,
   changeName,
-  changePassword,
+  requestChangePassword,
+  resetPassword,
 };
 
 module.exports = { userController };

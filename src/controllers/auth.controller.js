@@ -53,44 +53,6 @@ const activate = async (req, res) => {
   res.redirect(`${process.env.CLIENT_HOST}/profile`);
 };
 
-const requestChangePassword = async (req, res) => {
-  const { email } = req.body;
-
-  const user = await userService.findByEmail(email);
-
-  if (!user) {
-    throw ApiError.badRequest('No user with this email');
-  }
-
-  await userService.resetPassword(email);
-
-  res.send({ message: 'OK' });
-};
-
-const resetPassword = async (req, res) => {
-  const { newPassword, confirmation, resetToken } = req.body;
-
-  if (!newPassword || !confirmation) {
-    throw ApiError.badRequest('Please provide new password and confirmation');
-  }
-
-  if (newPassword !== confirmation) {
-    throw ApiError.badRequest('Passwords do not match');
-  }
-
-  const user = await User.findOne({ where: { resetToken } });
-
-  if (!user) {
-    throw ApiError.badRequest('Invalid or expired reset token');
-  }
-
-  const hashedPass = await bcrypt.hash(newPassword, 10);
-
-  await user.update({ password: hashedPass, resetToken: null });
-
-  res.redirect(`${process.env.CLIENT_HOST}/login`);
-};
-
 const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -132,7 +94,7 @@ const refresh = async (req, res) => {
 const generateTokens = async (res, user) => {
   const normalizedUser = userService.normalize(user);
 
-  const accessToken = jwtService.sign(normalizedUser);
+  // const accessToken = jwtService.sign(normalizedUser);
   const refreshToken = jwtService.signRefresh(normalizedUser);
 
   await tokenService.save(normalizedUser.id, refreshToken);
@@ -142,10 +104,10 @@ const generateTokens = async (res, user) => {
     httpOnly: true,
   });
 
-  res.send({
-    user: normalizedUser,
-    accessToken,
-  });
+  // res.send({
+  //   user: normalizedUser,
+  //   accessToken,
+  // });
 };
 
 const logout = async (req, res) => {
@@ -169,8 +131,6 @@ const authController = {
   login,
   refresh,
   logout,
-  requestChangePassword,
-  resetPassword,
 };
 
 module.exports = { authController };
