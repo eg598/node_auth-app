@@ -20,6 +20,16 @@ function send({ email, subject, html }) {
   });
 }
 
+function sendResetPasswordEmail(email, token) {
+  const href = `${process.env.CLIENT_HOST}/reset-password/${token}`;
+  const html = `
+    <h1>Reset-password</h1>
+    <a href="${href}">${href}</a>
+  `;
+
+  send({ email, html, subject: 'Reset' });
+}
+
 function sendActivationEmail(email, token) {
   const href = `${process.env.CLIENT_HOST}/activate/${token}`;
   const html = `
@@ -32,6 +42,7 @@ function sendActivationEmail(email, token) {
 
 const emailService = {
   sendActivationEmail,
+  sendResetPasswordEmail,
   send,
 };
 

@@ -9,21 +9,24 @@ function validateEmail(value) {}
 
 function validatePassword(value) {}
 
+function validateName(value) {}
+
 const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { name, email, password } = req.body;
 
   const errors = {
+    name: validateName(name),
     email: validateEmail(email),
     password: validatePassword(password),
   };
 
-  if (errors.email || errors.password) {
+  if (errors.email || errors.password || errors.name) {
     throw ApiError.badRequest('Bad request', errors);
   }
 
   const hashedPass = await bcrypt.hash(password, 10);
 
-  await userService.register(email, hashedPass);
+  await userService.register(name, email, hashedPass);
 
   res.send({ message: 'OK' });
 };
@@ -39,10 +42,53 @@ const activate = async (req, res) => {
     return;
   }
 
+  if (!user.activationToken) {
+    throw ApiError.badRequest('User is activated');
+  }
+
   user.activationToken = null;
   await user.save();
 
-  res.send(user);
+  // res.send(user);
+  res.redirect(`${process.env.CLIENT_HOST}/profile`);
+};
+
+const requestChangePassword = async (req, res) => {
+  const { email } = req.body;
+
+  const user = await userService.findByEmail(email);
+
+  if (!user) {
+    throw ApiError.badRequest('No user with this email');
+  }
+
+  await userService.resetPassword(email);
+
+  res.send({ message: 'OK' });
+};
+
+const resetPassword = async (req, res) => {
+  const { newPassword, confirmation, resetToken } = req.body;
+
+  if (!newPassword || !confirmation) {
+    throw ApiError.badRequest('Please provide new password and confirmation');
+  }
+
+  if (newPassword !== confirmation) {
+    throw ApiError.badRequest('Passwords do not match');
+  }
+
+  const user = await User.findOne({ where: { resetToken } });
+
+  if (!user) {
+    throw ApiError.badRequest('Invalid or expired reset token');
+  }
+
+  const hashedPass = await bcrypt.hash(newPassword, 10);
+
+  await user.update({ password: hashedPass, resetToken: null });
+
+  res.redirect(`${process.env.CLIENT_HOST}/login`);
 };
 
 const login = async (req, res) => {
@@ -60,7 +106,12 @@ const login = async (req, res) => {
     throw ApiError.badRequest('Wrong password');
   }
 
-  return generateTokens(res, user);
+  if (user.activationToken) {
+    throw ApiError.badRequest('User is not activated');
+  }
+
+  await generateTokens(res, user);
+  res.redirect(`${process.env.CLIENT_HOST}/profile`);
 };
 
 const refresh = async (req, res) => {
@@ -108,7 +159,8 @@ const logout = async (req, res) => {
 
   await tokenService.remove(userData.id);
 
-  res.sendStatus(204);
+  // res.sendStatus(204);
+  res.redirect(`${process.env.CLIENT_HOST}/login`);
 };
 
 const authController = {
@@ -117,6 +169,8 @@ const authController = {
   login,
   refresh,
   logout,
+  requestChangePassword,
+  resetPassword,
 };
 
 module.exports = { authController };

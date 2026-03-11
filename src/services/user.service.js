@@ -19,7 +19,7 @@ function findByEmail(email) {
   return User.findOne({ where: { email } });
 }
 
-async function register(email, password) {
+async function register(name, email, password) {
   const activationToken = uuidv4();
 
   const existUser = await findByEmail(email);
@@ -30,9 +30,29 @@ async function register(email, password) {
     });
   }
 
-  await User.create({ email, password, activationToken });
+  await User.create({
+    name,
+    email,
+    password,
+    activationToken,
+  });
 
   await emailService.sendActivationEmail(email, activationToken);
+}
+
+async function resetPassword(email) {
+  const resetToken = uuidv4();
+
+  const user = await findByEmail(email);
+
+  if (!user) {
+    throw ApiError.badRequest('User does not exist');
+  }
+
+  user.resetToken = resetToken;
+  await user.save();
+
+  await emailService.sendActivationEmail(email, resetToken);
 }
 
 const userService = {
@@ -40,6 +60,7 @@ const userService = {
   normalize,
   findByEmail,
   register,
+  resetPassword,
 };
 
 module.exports = { userService };
